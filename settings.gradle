@@ -1,2 +1,19 @@
-rootProject.name = "yoga-java"
+rootProject.name = 'yoga'
 
+include ':capture'
+include ':benchmark'
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    repositories {
+        mavenCentral()
+    }
+}
+
+gradle.lifecycle.beforeProject {
+    apply plugin : JavaLibraryPlugin
+    it.group = 'org.appliedenergistics.yoga'
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(21)
+    }
+}

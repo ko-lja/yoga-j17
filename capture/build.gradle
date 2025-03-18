@@ -1,0 +1,7 @@
+
+base.archivesName = 'yoga-capture'
+
+dependencies {
+    api project(':')
+    api 'com.google.code.gson:gson:2.12.1'
+}

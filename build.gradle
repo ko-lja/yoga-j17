@@ -1,5 +1,8 @@
 
-base.archivesName = 'yoga'
+plugins {
+    id 'maven-publish'
+    id 'signing'
+}
 
 dependencies {
     compileOnly 'org.jetbrains:annotations:26.0.2'
@@ -7,6 +10,85 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
+///////////////////
+// Version Number
+ext.tag = System.getenv('TAG') ?: ""
+if (ext.tag) {
+    if (!ext.tag.startsWith("v")) {
+        throw new GradleException("Tags should start with v ${ext.tag}")
+    }
+
+    project.version = ext.tag.substring("v".length())
+} else {
+    // This essentially tries to implement delay expansion of the project version based on a value source to
+    // still support configuration caching.
+    project.version = providers.gradleProperty("version").orElse("").flatMap(version -> {
+        if (!version.isBlank()) {
+            return providers.provider { version }
+        }
+        return providers.of(ProjectVersionSource.class, spec -> {
+            spec.getParameters().getDefaultBranches().addAll("main")
+        });
+    }).get()
+}
+
+tasks.register("printProjectVersion", PrintProjectVersion.class);
+
 tasks.test {
     useJUnitPlatform()
+}
+
+//////////////////
+// Maven publish
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifactId = "yoga"
+            version = project.version
+            pom {
+                name = "Yoga"
+                description = "This is a pure-java port of Facebooks Yoga layout library for use on any VM."
+                url = "https://github.com/AppliedEnergistics/yoga"
+                scm {
+                    connection = "scm:git:git://github.com/AppliedEnergistics/yoga.git"
+                    developerConnection = "scm:git:ssh://github.com:AppliedEnergistics/yoga.git"
+                    url = "https://github.com/AppliedEnergistics/yoga/tree/main"
+                }
+                licenses {
+                    license {
+                        name = "MIT"
+                        url = "https://github.com/AppliedEnergistics/yoga/blob/main/LICENSE"
+                    }
+                }
+                developers {
+                    developer {
+                        name = "shartte"
+                        email = "team@appliedenergistics.org"
+                        organization = "Applied Energistics"
+                        organizationUrl = "https://github.com/AppliedEnergistics/"
+                    }
+                }
+            }
+
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = "Local"
+            url = file("build/repo").toURI()
+        }
+    }
+}
+
+signing {
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    required = signingKey != null && signingPassword != null
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.maven
+}
+
+afterEvaluate {
+    println('Version: ' + project.version)
 }

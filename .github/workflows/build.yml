@@ -1,0 +1,93 @@
+name: 'Build and Test'
+
+on:
+  push:
+    # Only on branches, not tags/releases
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '*'
+
+# Cancel outdated builds for the same branch
+concurrency:
+  group: ci-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Only run the pull-request build if the pull-request was opened from another repository,
+    # since we already run this workflow for the branch push to our repo.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - run: git fetch origin --tags
+        shell: bash
+      - uses: ./.github/actions/gradle-setup
+
+      - name: Build with Gradle
+        run: ./gradlew printProjectVersion build publish --max-workers 1
+        env:
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_KEY_PASSWORD }}
+
+      # Always upload test results
+      - name: Merge Test Reports
+        if: success() || failure()
+        run: npx junit-report-merger junit.xml "**/TEST-*.xml"
+
+      - uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: test-results
+          path: junit.xml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: build/libs/
+
+      - name: Prepare artifact metadata. Note that VERSION is set by the gradle script.
+        id: prepare_artifact_metadata
+        run: |
+          echo ARTIFACT_PATH=./build/libs/yoga-${VERSION}.jar >> $GITHUB_OUTPUT
+          echo ARTIFACT_NAME=yoga-${VERSION}.jar >> $GITHUB_OUTPUT
+          echo JAVADOC_PATH=./build/libs/yoga-${VERSION}-javadoc.jar >> $GITHUB_OUTPUT
+          echo JAVADOC_NAME=yoga-${VERSION}-javadoc.jar >> $GITHUB_OUTPUT
+          echo VERSION=${VERSION} >> $GITHUB_OUTPUT
+      - name: Archive build results
+        run: tar -I zstd -cf build.tar.zst build/libs build/repo
+      - name: Upload build and gradle folders
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: build.tar.zst
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: Publish Snapshot to Maven Central
+    needs: build
+    runs-on: ubuntu-latest
+    # Only push the snapshot for the main branch of our repo (i.e. not for forks)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'AppliedEnergistics/yoga'
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+      - name: Unpack build artifact
+        run: tar axf build.tar.zst
+      - name: Validate artifacts exist
+        run: test -d ./build
+      - name: Publish to Maven Central
+        uses: AppliedEnergistics/maven-publish-action@main
+        with:
+          local-repository-path: build/repo
+          remote-repository-url: https://central.sonatype.com/repository/maven-snapshots/
+          remote-repository-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          remote-repository-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

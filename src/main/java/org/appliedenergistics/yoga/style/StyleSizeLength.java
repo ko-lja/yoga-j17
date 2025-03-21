@@ -16,9 +16,9 @@ import org.appliedenergistics.yoga.numeric.FloatOptional;
  * etc.). It may be one of:
  * 1. Undefined
  * 2. A keyword (e.g. auto, max-content, stretch, etc.)
- * 3. A CSS <length-percentage> value:
- * a. <length> value (e.g. 10px)
- * b. <percentage> value of a reference <length>
+ * 3. A CSS &lt;length-percentage> value:
+ * a. &lt;length> value (e.g. 10px)
+ * b. &lt;percentage> value of a reference &lt;length>
  * <p>
  * References:
  * 1. https://www.w3.org/TR/css-values-4/#lengths

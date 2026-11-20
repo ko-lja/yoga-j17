@@ -27,6 +27,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew printProjectVersion build publish -x check --max-workers 1
         env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_KEY_PASSWORD }}
       - name: Prepare artifact metadata. Note that VERSION is set by the gradle script.
@@ -76,46 +78,3 @@ jobs:
           asset_path: ${{ needs.build.outputs.JAVADOC_PATH }}
           asset_name: ${{ needs.build.outputs.JAVADOC_NAME }}
           asset_content_type: application/zip
-
-  deploy-github-packages:
-    name: Deploy to Github Packages
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-      - name: Unpack build artifact
-        run: tar axf build.tar.zst
-      - name: Validate artifacts exist
-        run: test -d ./build
-      - name: Publish to Github Packages
-        uses: AppliedEnergistics/maven-publish-action@main
-        with:
-          local-repository-path: build/repo
-          remote-repository-url: https://maven.pkg.github.com/AppliedEnergistics/yoga/
-          remote-repository-username: ${{ github.actor }}
-          remote-repository-password: ${{ github.token }}
-
-  deploy-maven-central:
-    name: Deploy to Maven Central
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-      - name: Unpack build artifact
-        run: tar axf build.tar.zst
-      - name: Validate artifacts exist
-        run: test -d ./build
-      - name: Publish to Maven Central
-        uses: AppliedEnergistics/maven-central-publish-action@main
-        with:
-          local-repository-path: build/repo
-          username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

@@ -14,7 +14,7 @@ gradle.lifecycle.beforeProject {
     apply plugin : JavaLibraryPlugin
     it.group = 'org.appliedenergistics.yoga'
     java {
-        toolchain.languageVersion = JavaLanguageVersion.of(21)
+        toolchain.languageVersion = JavaLanguageVersion.of(17)
         withSourcesJar()
         withJavadocJar()
     }

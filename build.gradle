@@ -78,6 +78,16 @@ publishing {
             name = "Local"
             url = file("build/repo").toURI()
         }
+
+        maven {
+            name = "Expandium"
+
+            url = uri("https://repo.expandium.net/${project.version.toString().endsWith('-SNAPSHOT') ? 'snapshots' : 'releases'}")
+            credentials {
+                username = System.getenv("MAVEN_USERNAME")
+                password = System.getenv("MAVEN_PASSWORD")
+            }
+        }
     }
 }
 
